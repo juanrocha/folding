@@ -9,7 +9,7 @@ library(ggmap)
 
 # read data
 dat <- readxl::read_excel(
-    path = "~/Box Sync/Osterblom_folding/HQ and subsidiaries.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
+    path = "~/Box Sync/Osterblom_folding/HQ and subsidiaries.xlsx", sheet = 2, .name_repair = janitor::make_clean_names)
 
 str(dat)
 skimr::skim(dat)
@@ -56,11 +56,12 @@ df_plot[is.na(df_plot$yini),"yini"] <- korea$lat
 g <- world +
     geom_curve(dat = df_plot %>% filter(hq != countries),
                aes(x = xini, y = yini, xend = xend, yend = yend, color = company),
-               curvature = -0.15, size = 0.2, show.legend = TRUE) +
+               curvature = -0.15, size = 0.2, show.legend = FALSE) +
     facet_wrap(.~company)
     
 
 
 
-ggsave(file = "map_network_faceted.png", device = "png", dpi = 400, 
+ggsave(file = "map_network_faceted_191009.png", device = "png", dpi = 400, 
        width = 7, height = 5, units = "in")
+
