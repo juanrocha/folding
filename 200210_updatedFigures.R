@@ -10,7 +10,7 @@ library(RColorBrewer)
 
 # read data
 dat <- readxl::read_excel(
-    path = "~/Box Sync/Osterblom_folding/Protein folding2.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
+    path = "~/Box Sync/Osterblom_folding/Protein folding3.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
 
 str(dat)
 skimr::skim(dat)
@@ -26,10 +26,11 @@ df_actors <- dat %>%
     mutate(
         scientific_chaperones = str_remove_all(scientific_chaperones, pattern = "\\(.*?\\)"),
         actors = str_c(sea_bos_actors, scientific_chaperones, sep = ", "),
-        actors = str_split(actors, pattern = ", ")
+        actors = str_split(actors, pattern = ",")
     ) %>%
     unnest(cols = c(actors)) %>%
-    filter(actors != "0")
+    filter(actors != "0") %>%
+    mutate(actors = str_trim(actors, "both"))
 
 
 companies_meeting <- df_actors %>%
@@ -45,11 +46,18 @@ companies_meeting <- df_actors %>%
 
 ## correct names
 companies_meeting$company[is.na(companies_meeting$company)] <- "Scientists"
-companies_meeting$company[companies_meeting$company == "AV"] <- "AUSS"
-companies_meeting$company[companies_meeting$company == "Cargill"] <- "CAN"
+# companies_meeting$company[companies_meeting$company == "AV"] <- "AUSS"
+# companies_meeting$company[companies_meeting$company == "Cargill"] <- "CAN"
+# 
+# Check with Henrik if these changes still apply:
 companies_meeting$company[companies_meeting$company == "Nutreco"] <- "Skretting"
 companies_meeting$company[companies_meeting$company == "Cermaq"] <- "MC"
 companies_meeting$company[companies_meeting$company == "AF"] <- "MNC"
+
+# create a non-member categories
+
+
+
 ## 
 ## for scientist some of them have affiliation on () -> Delete
 ## Ubi, UBC, COS, Ore problematic
@@ -73,13 +81,21 @@ meetings <- companies_meeting %>%
 ## not working properly (missing scientistis in some meetings)
 
 
-comps <- meetings %>% pull(company) %>% unique()
-l <- length(comps)
-coords <- cbind(sin(2 * pi * ((0:(l - 1))/l)), cos(2 * pi * ((0:(l - 1))/l)))
+comps <- meetings %>% 
+    pull(company) %>% 
+    unique() %>%
+    as_factor() %>%
+    fct_relevel("Scientists", "MD")
 
-coords <- as_tibble(coords) %>%
-    rename(x = V1, y = V2) %>%
-    add_column(company = comps)
+
+l <- length(comps)
+## add some noise so it does not end up on the same coordinate
+coords <- tibble(
+    x = sin(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2),
+    z = cos(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2), 
+    y = c(1.5, 1.2, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5, 0.75, 0.85))
+
+coords <- coords %>% add_column(company = levels(comps)) ## scientist and MD on top as Henrik wanted
 
 meetings <-  meetings %>%
     left_join(coords) #%>%
@@ -93,17 +109,18 @@ meetings <-  meetings %>%
 # DW: East Asia (Korea) – not sure if separate from Japan or not… possibly a separate category from Japan.
 
 color <- vector(mode = "character", length = length(comps))
-color[comps %in% c("AUSS", "NP", "Trident")] <- brewer.pal(3, "Greys")
-color[comps %in% c("CAN", "MHG", "Skretting")] <- brewer.pal(3, "Reds")
-color[comps %in% c("CPF", "TUF")] <- brewer.pal(3, "Greens")
-color[comps %in% c("MNC", "KK", "NSK", "MC")] <- brewer.pal(4, "Blues")
-color[comps %in% c("DW")] <- "purple"
-color[comps %in% c("Scientists", "MD")] <- c("orange", "goldenrod")
+color[levels(comps) %in% c("AUSS", "NP", "Trident")] <- brewer.pal(3, "Greys")
+color[levels(comps) %in% c("CAN", "MHG", "Skretting")] <- brewer.pal(3, "Reds")
+color[levels(comps) %in% c("CPF", "TUF")] <- brewer.pal(3, "Greens")[1:2]
+color[levels(comps) %in% c("MNC", "KK", "NSK", "MC")] <- brewer.pal(4, "Blues")
+color[levels(comps) %in% c("DW")] <- "purple"
+color[levels(comps) %in% c("Scientists", "MD")] <- c("orange", "goldenrod")
+# color[color== ""] <- 'gray50'
 
 df_color <- tibble(
-    company = comps,
-    color = color
-) %>% arrange(company)
+    company = levels(comps),
+    color = color) %>% 
+    arrange(company)
 # meetings$task_force[meetings$task_force == "Handover"] <- NA
 
 ## Stars plot: each network is plotted individually by date. Note there is more than one network per day!
@@ -119,22 +136,23 @@ g <- meetings %>%
     theme_void(base_size = 6)  +
     theme(legend.position = "bottom", legend.direction = "horizontal") 
 
-ggsave(g, filename = "timeline.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
+ggsave(g, filename = "timeline_201001_top.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
 
 ## Time line
-g <- meetings %>%
+g <- meetings %>% 
+    mutate(irl_virtual = str_to_lower(irl_virtual)) %>%
     left_join(df_color) %>%
     filter(company != "Scientist") %>%
     mutate(year = lubridate::floor_date(date, "year"),
            alpha = ifelse(irl_virtual == "IRL", 1, 0.75)) %>%
     ggplot(aes(x = date, y = y)) +
-    geom_hline(yintercept = 0, color = "black") +
+    geom_hline(yintercept = 1, color = "black") +
     geom_segment(aes(xend = date), yend = 0, color = "grey50", size = 0.25) +
     #geom_vline(aes(xintercept = date, linetype = task_force), size = 0.25) +
-    geom_point(aes(size = n, fill = company, color = company, alpha = irl_virtual)) +
-    scale_alpha_manual(values = c(0.5,1), labels = c("virtual", "in real life"), 
-                       name = "Meeting type", 
-                       guide = guide_legend(direction = "vertical")) + 
+    geom_point(aes(size = n, fill = company, color = company)) +
+    # scale_alpha_manual(values = c(0.5,1), labels = c("virtual", "in real life"), 
+    #                    name = "Meeting type", 
+    #                    guide = guide_legend(direction = "vertical")) + 
     scale_size("Number of people", breaks = c(1,5,10), 
                guide = guide_legend(direction = "vertical")) + 
     scale_color_manual("Companies", aesthetics = c("color", "fill"), values = df_color$color,
@@ -143,11 +161,12 @@ g <- meetings %>%
                    select(date, task_force, phase) %>%
                    mutate(date = lubridate::ymd(date)) %>%
                    filter(!is.na(task_force), task_force != "Handover"),
-               aes(x = date, shape = task_force, y = 1.3)) +
+               aes(x = date, shape = task_force, y = 1.8)) +
     scale_shape("Task force", guide = guide_legend(direction = "vertical", nrow = 3)) +
     facet_wrap( ~ phase , ncol=1, scales = "free_x", ) + 
-    ylim(-1.2,1.5) + labs(y = "Phase", x = "Date") +
+    labs(y = "Phase", x = "Date") +
     scale_x_date(date_labels = "%b %Y") +
+    #scale_y_reverse() +
     theme_minimal(base_size = 8) + 
     theme(legend.position = "bottom", 
           axis.text.y = element_blank(),
@@ -156,6 +175,8 @@ g <- meetings %>%
           panel.grid.minor.y = element_blank(),
           panel.grid.major.y = element_blank()
           ) 
+
+g
 
 
 ####
@@ -188,10 +209,9 @@ people <- people %>%
 setdiff( people$actors, companies_meeting$actors)
 
 companies_meeting %>% 
-    select(actors) %>%
+    select(actors, company) %>%
     arrange(actors) %>%
-    unique() %>% print(n=109)
-    #write_csv(path = "actor_names.csv")
+    unique() %>% print(n=136) %>% write_csv(path = "actor_names.csv")
 
 companies_meeting <- companies_meeting %>%
     left_join(people) 
