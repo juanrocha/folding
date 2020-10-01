@@ -20,7 +20,8 @@ skimr::skim(dat)
 # organize as edgelist
 
 df_actors <- dat %>%
-    mutate(sea_bos_actors = sea_bos_individual_s, scientific_chaperones = keystone_dialogue_team) %>%
+    mutate(
+        sea_bos_actors = sea_bos_individual_s, scientific_chaperones = keystone_dialogue_team) %>%
     select(id, phase, date, sea_bos_actors, scientific_chaperones, irl_virtual, task_force) %>%
     # a previous step can be added to modify the scientific_chaperones names and add their affiliation. This will be useful later for a projection of industries.
     mutate(
@@ -55,7 +56,7 @@ companies_meeting$company[companies_meeting$company == "Cermaq"] <- "MC"
 companies_meeting$company[companies_meeting$company == "AF"] <- "MNC"
 
 # create a non-member categories
-
+companies_meeting$company[companies_meeting$company %in% c("Trident", "NP", "AUSS")] <- "non-member"
 
 
 ## 
@@ -93,7 +94,7 @@ l <- length(comps)
 coords <- tibble(
     x = sin(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2),
     z = cos(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2), 
-    y = c(1.5, 1.2, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5, 0.75, 0.85))
+    y = c(1.5, 1.2, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5))
 
 coords <- coords %>% add_column(company = levels(comps)) ## scientist and MD on top as Henrik wanted
 
@@ -109,12 +110,13 @@ meetings <-  meetings %>%
 # DW: East Asia (Korea) – not sure if separate from Japan or not… possibly a separate category from Japan.
 
 color <- vector(mode = "character", length = length(comps))
-color[levels(comps) %in% c("AUSS", "NP", "Trident")] <- brewer.pal(3, "Greys")
-color[levels(comps) %in% c("CAN", "MHG", "Skretting")] <- brewer.pal(3, "Reds")
-color[levels(comps) %in% c("CPF", "TUF")] <- brewer.pal(3, "Greens")[1:2]
-color[levels(comps) %in% c("MNC", "KK", "NSK", "MC")] <- brewer.pal(4, "Blues")
-color[levels(comps) %in% c("DW")] <- "purple"
-color[levels(comps) %in% c("Scientists", "MD")] <- c("orange", "goldenrod")
+cols <- brewer.pal(12, "Paired")
+color[levels(comps) %in% c("non-member")] <- "grey40"
+color[levels(comps) %in% c("CAN", "MHG", "Skretting")] <- cols[9:11]
+color[levels(comps) %in% c("CPF", "TUF")] <- cols[c(1,2)]
+color[levels(comps) %in% c("MNC", "KK", "NSK", "MC")] <- cols[5:8]
+color[levels(comps) %in% c("DW")] <- cols[12]
+color[levels(comps) %in% c("Scientists", "MD")] <- cols[c(4,3)]
 # color[color== ""] <- 'gray50'
 
 df_color <- tibble(
@@ -136,7 +138,7 @@ g <- meetings %>%
     theme_void(base_size = 6)  +
     theme(legend.position = "bottom", legend.direction = "horizontal") 
 
-ggsave(g, filename = "timeline_201001_top.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
+ggsave(g, filename = "timeline_201001_bottom.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
 
 ## Time line
 g <- meetings %>% 
@@ -166,7 +168,7 @@ g <- meetings %>%
     facet_wrap( ~ phase , ncol=1, scales = "free_x", ) + 
     labs(y = "Phase", x = "Date") +
     scale_x_date(date_labels = "%b %Y") +
-    #scale_y_reverse() +
+    scale_y_reverse() +
     theme_minimal(base_size = 8) + 
     theme(legend.position = "bottom", 
           axis.text.y = element_blank(),
@@ -184,50 +186,54 @@ g
 #### funding + carbon + number of meetings./ frequence of meetins per month / frequency of irl vs virtual
 #### sum of unique people per phase + male / female.
 
+# J201001: updated from Henrik's email 200924
 efforts <- tibble(
-    phase = c("I1", "I2", "I3", "I4"),
-    money = c(0, 200000, 801195, 1083602),
+    phase = c("I1", "I2", "I3", "I4", "I5"),
+    money = c(0, 246000, 500000, 990000, 260000),
 )
 
 
 
-people <- read_csv2(
-    file = "~/Box Sync/Osterblom_folding/Revised actor names_gender.csv") 
+# people <- read_csv2(
+#     file = "~/Box Sync/Osterblom_folding/Revised actor names_gender.csv") 
 
-people <- people %>% 
-    select(-X2) %>%
-    rename(gender = X3, correct = X4)
+# people <- people %>% 
+#     select(-X2) %>%
+#     rename(gender = X3, correct = X4)
+# 
+# people$correct[is.na(people$correct)] <- "correct"
+# 
+# people <- people %>% 
+#     mutate(correct = str_to_lower(correct),
+#            actors = str_remove(actors, ","),
+#            actors = str_trim(actors,)) %>% 
+#     filter(correct != "incorrect") 
 
-people$correct[is.na(people$correct)] <- "correct"
+people <- readxl::read_xlsx(
+    path = "~/Box Sync/Osterblom_folding/Attributes_SeaBOS.xlsx", sheet =1)
 
-people <- people %>% 
-    mutate(correct = str_to_lower(correct),
-           actors = str_remove(actors, ","),
-           actors = str_trim(actors,)) %>% 
-    filter(correct != "incorrect") 
-
-setdiff( people$actors, companies_meeting$actors)
+setdiff(people$actors, companies_meeting$actors)
 
 companies_meeting %>% 
     select(actors, company) %>%
     arrange(actors) %>%
-    unique() %>% print(n=136) %>% write_csv(path = "actor_names.csv")
+    unique() %>% print(n=132) # %>% write_csv(path = "actor_names.csv")
 
 companies_meeting <- companies_meeting %>%
     left_join(people) 
 
-## correcting one person without gender
-companies_meeting$gender[is.na(companies_meeting$gender)] <- "m"
+## correcting four persons without gender
+companies_meeting$Gender[is.na(companies_meeting$Gender)] <- "M"
 
 gender <- companies_meeting %>% 
     mutate(academic = ifelse(company == "Scientists", "academic", "corporate")) %>%
-    select(phase, actors, gender, academic) %>% 
+    select(phase, actors, gender =  Gender, academic) %>% 
     group_by(phase, gender, academic) %>%
     unique() %>% 
     tally() %>% 
     pivot_wider(id_cols = c(phase, academic), values_from = n, 
                 names_from = gender, values_fill = list(n = 0)) %>%
-    rename(male = m, female = f)
+    rename(male = "M", female = "F")
 
 carbon <- dat %>%
     group_by(phase) %>% 
@@ -261,7 +267,7 @@ p1 <- efforts %>%
 p2 <- gender %>%
     pivot_longer(cols = male:female, names_to = "gender", values_to = "participants") %>% 
     ggplot(aes(phase, participants)) +
-    geom_col(position = "dodge", aes(fill = gender)) + 
+    geom_col(position = "stack", aes(fill = gender)) + 
     #scale_fill_viridis_d(option = "A", aesthetics = "fill") +
     facet_wrap(~academic, scales = "free") +
     theme_light(base_size = 8) +
@@ -321,7 +327,7 @@ df_actors <- companies_meeting %>%
     filter(company != "Scientists") %>%
     group_by(date) %>% 
     mutate(companions = list(actors)) %>% 
-    unnest() %>%
+    unnest(cols = c(companions)) %>%
     filter(actors != companions)
     
     
@@ -340,7 +346,7 @@ df_actors <- companies_meeting %>%
     # unnest() %>%
     # filter(actors != companions)
 
-df_actors$company[is.na(df_actors$company)] <- "Academic"
+# df_actors$company[is.na(df_actors$company)] <- "Academic"
 
 
 mat <- as.matrix(actor_meeting[,-c(1,2)])
@@ -357,16 +363,21 @@ df_actors <- df_actors %>%
     rename(xend = MDS1, yend = MDS2)
 
 df_actors <- df_actors %>% 
-    ungroup %>% group_by(phase, actors) %>%
+    ungroup() %>% group_by(phase, actors) %>%
     mutate(count = 1, meetings = sum(count)) %>%
     ungroup() %>%
-    group_by(phase,actors, companions, company, gender, x,y,xend,yend) %>%
+    group_by(phase,actors, companions, company, Gender, x,y,xend,yend) %>%
     mutate(count = 1) %>%
     mutate(meetings_together = sum(count))
 
+df_actors <-  df_actors %>% ungroup() %>%
+    rename(gender = Gender) 
+
 df_actors %>%
     ggplot() +
-    geom_segment(aes(x = x, y = y, xend = xend, yend = yend), size = 0.25,alpha = 0.1, color = "gray25") +  #alpha = 0.25,
+    geom_segment(
+        aes(x = x, y = y, xend = xend, yend = yend), 
+        size = 0.25,alpha = 0.1, color = "gray25") +  #alpha = 0.25,
     #scale_color_viridis_c(option = "viridis", direction = 1) +
     geom_point(
         data = df_actors %>% ungroup() %>% 
@@ -375,17 +386,18 @@ df_actors %>%
             unique(),
         aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
     scale_color_manual("Companies", aesthetics = c("color", "fill"), #option = "D",
-                    guide = guide_legend(direction = "vertical", nrow = 3) ,
+                    guide = guide_legend(direction = "vertical", ncol = 3) ,
                     values = df_color %>% filter(company != "Scientists") %>% pull(color)) +
     scale_size("Number of meetings", breaks = c(50,100,200),
-                      guide = guide_legend(direction = "vertical", ncol = 1), range = c(0.5,3)) +
+                      guide = guide_legend(direction = "horizontal", nrow = 1, 
+                                           title.position = "top"), range = c(0.5,3)) +
     # scale_shape("Gender", 
     #                    guide = guide_legend(direction = "vertical", ncol = 1)) +
     facet_wrap(.~phase) +
-    theme_blank(base_size = 5) +
-    theme(legend.position = "bottom")
+    theme_blank(base_size = 7) +
+    theme(legend.position = c(0.85, 0.3))
 
-ggsave(filename = "networks.png", device = "png", dpi = 800, width = 5, height = 6)
+ggsave(filename = "networks_201001.png", device = "png", dpi = 900, width = 7.2, height = 5)
 
 
 
