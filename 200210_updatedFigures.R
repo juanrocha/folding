@@ -138,7 +138,7 @@ g <- meetings %>%
     theme_void(base_size = 6)  +
     theme(legend.position = "bottom", legend.direction = "horizontal") 
 
-ggsave(g, filename = "timeline_201001_bottom.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(g, filename = "timeline_201001_bottom.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
 
 ## Time line
 g <- meetings %>% 
@@ -281,42 +281,10 @@ ggsave(filename = "descriptive_stats.png", device = "png", dpi = 600, width = 7,
 ## networks with individuals per meeting (phase 1 and 4)
 
 
-########################################################
-### Animation
-library(gganimate)
-mov <- meetings %>% ungroup() %>% 
-    #rownames_to_column(var = "times") %>%
-    # mutate(times = as.numeric(times)) %>%
-    mutate(x0 = x - id) %>%
-    ggplot() +
-    geom_segment(aes(x = x0, y = y, xend = 0, yend = 0), 
-                 color = "gray50", alpha = 0.5, size = 0.25) + 
-    geom_point(
-        aes(x = x0, y = y, color = company, size = n), alpha = 1) +
-    theme_blank() +
-    # animation code
-    labs(title = "Date: {frame_time}") +
-    transition_time(date) +
-    enter_fade() +
-    exit_fade() +
-    ease_aes('linear') 
-
-animate(
-    nframes = max(meetings$id),
-    fps = 5,
-    mov + enter_fade() + exit_fade(),
-    render = av_renderer()
-    )
-
-anim_save(filename = "SeaBos_200214.gif")
-
-##########################################3
-
-
 
 actor_meeting <- companies_meeting %>%
     select(date, actors, company) %>% 
-    filter(company != "Scientists") %>%
+    #filter(company != "Scientists") %>%
     mutate(count = 1) %>%
     group_by(date, actors) %>% unique() %>%
     spread(key = actors, value = count, fill = 0)
@@ -324,7 +292,7 @@ actor_meeting <- companies_meeting %>%
 
 
 df_actors <- companies_meeting %>% 
-    filter(company != "Scientists") %>%
+    #filter(company != "Scientists") %>%
     group_by(date) %>% 
     mutate(companions = list(actors)) %>% 
     unnest(cols = c(companions)) %>%
@@ -387,7 +355,7 @@ df_actors %>%
         aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
     scale_color_manual("Companies", aesthetics = c("color", "fill"), #option = "D",
                     guide = guide_legend(direction = "vertical", ncol = 3) ,
-                    values = df_color %>% filter(company != "Scientists") %>% pull(color)) +
+                    values = df_color %>% pull(color)) +
     scale_size("Number of meetings", breaks = c(50,100,200),
                       guide = guide_legend(direction = "horizontal", nrow = 1, 
                                            title.position = "top"), range = c(0.5,3)) +
@@ -399,6 +367,43 @@ df_actors %>%
 
 ggsave(filename = "networks_201001.png", device = "png", dpi = 900, width = 7.2, height = 5)
 
+
+
+########################################################
+### Animation
+library(gganimate)
+mov <- df_actors %>%
+    ggplot() +
+    geom_segment(
+        aes(x = x, y = y, xend = xend, yend = yend), 
+        size = 0.25,alpha = 0.1, color = "gray25") +  
+    geom_point(
+        data = df_actors %>% ungroup() %>% 
+            group_by(phase) %>%
+            select(phase, actors, x, y, company, meetings, gender) %>%
+            unique(),
+        aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
+    scale_size("Number of meetings", breaks = c(50,100,200),
+               guide = guide_legend(direction = "horizontal", nrow = 1, 
+                                    title.position = "top"), range = c(0.5,3)) +
+    theme_blank() +
+    # animation code
+    labs(title = "Date: {frame_time}") +
+    transition_time(date) +
+    enter_fade() +
+    exit_fade() +
+    ease_aes('linear') 
+
+animate(
+    nframes = max(df_actors$id),
+    fps = 5,
+    mov + enter_fade() + exit_fade(),
+    render = av_renderer()
+)
+
+anim_save(filename = "SeaBos_201001.gif")
+
+##########################################3
 
 
 
