@@ -38,7 +38,7 @@ companies_meeting <- df_actors %>%
     select(id, phase, date, actors, irl_virtual, task_force) %>%
     mutate(
         company = str_extract(actors, pattern = "\\(.*?\\)"),
-        actors = str_remove(actors, pattern = "\\(.*?\\)")) %>%
+        actors = str_remove(actors, pattern = "\\(.*?\\)")) %>% 
     mutate(
         company = str_remove_all(company, pattern = "\\(|\\)"),
         actors = str_trim(actors, "both"),
@@ -94,7 +94,7 @@ l <- length(comps)
 coords <- tibble(
     x = sin(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2),
     z = cos(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2), 
-    y = c(1.5, 1.2, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5))
+    y = c(1.5, 1.0, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5))
 
 coords <- coords %>% add_column(company = levels(comps)) ## scientist and MD on top as Henrik wanted
 
@@ -126,21 +126,21 @@ df_color <- tibble(
 # meetings$task_force[meetings$task_force == "Handover"] <- NA
 
 ## Stars plot: each network is plotted individually by date. Note there is more than one network per day!
-g <- meetings %>%
-    left_join(df_color) %>%
-    filter(company != "Scientist") %>%
-    #filter(date > "2018-12-31") %>%
-    ggplot(aes(x,y)) +
-    geom_segment(xend = 0, yend = 0, color = "grey50", size = 0.25) + #irl_virtual
-    geom_point(aes(size = n, fill = company, color = company), alpha = 0.75) + #irl_virtual
-    facet_wrap(.~ date) + 
-    scale_color_manual(values = df_color$color) +
-    theme_void(base_size = 6)  +
-    theme(legend.position = "bottom", legend.direction = "horizontal") 
+# g <- meetings %>%
+#     left_join(df_color) %>%
+#     filter(company != "Scientist") %>%
+#     #filter(date > "2018-12-31") %>%
+#     ggplot(aes(x,y)) +
+#     geom_segment(xend = 0, yend = 0, color = "grey50", size = 0.25) + #irl_virtual
+#     geom_point(aes(size = n, fill = company, color = company), alpha = 0.75) + #irl_virtual
+#     facet_wrap(.~ date) + 
+#     scale_color_manual(values = df_color$color) +
+#     theme_void(base_size = 6)  +
+#     theme(legend.position = "bottom", legend.direction = "horizontal") 
 
-# ggsave(g, filename = "timeline_201001_bottom.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(g, filename = "timeline_201113_bottom.png", device = "png", width = 7, height = 7, units = "in", dpi = 600)
 
-## Time line
+# Time line
 g <- meetings %>% 
     mutate(irl_virtual = str_to_lower(irl_virtual)) %>%
     left_join(df_color) %>%
@@ -149,7 +149,11 @@ g <- meetings %>%
            alpha = ifelse(irl_virtual == "IRL", 1, 0.75)) %>%
     ggplot(aes(x = date, y = y)) +
     geom_hline(yintercept = 1, color = "black") +
-    geom_segment(aes(xend = date), yend = 0, color = "grey50", size = 0.25) +
+    geom_segment(
+        data = meetings %>% 
+            group_by(date, phase) %>%
+            summarize(ymin = min(y), ymax = max(y)),
+        aes(xend = date, y = ymin, x = date, yend = ymax), color = "grey50", size = 0.25) +
     #geom_vline(aes(xintercept = date, linetype = task_force), size = 0.25) +
     geom_point(aes(size = n, fill = company, color = company)) +
     # scale_alpha_manual(values = c(0.5,1), labels = c("virtual", "in real life"), 
@@ -169,7 +173,7 @@ g <- meetings %>%
     labs(y = "Phase", x = "Date") +
     scale_x_date(date_labels = "%b %Y") +
     scale_y_reverse() +
-    theme_minimal(base_size = 8) + 
+    theme_minimal(base_size = 6) + 
     theme(legend.position = "bottom", 
           axis.text.y = element_blank(),
           axis.line.y = element_blank(),
@@ -181,6 +185,7 @@ g <- meetings %>%
 g
 
 
+
 ####
 #### idea for bar plots:
 #### funding + carbon + number of meetings./ frequence of meetins per month / frequency of irl vs virtual
@@ -189,7 +194,7 @@ g
 # J201001: updated from Henrik's email 200924
 efforts <- tibble(
     phase = c("I1", "I2", "I3", "I4", "I5"),
-    money = c(0, 246000, 500000, 990000, 260000),
+    money = c(0, 246000, 500000, 990000, 594000),
 )
 
 
@@ -217,7 +222,7 @@ setdiff(people$actors, companies_meeting$actors)
 companies_meeting %>% 
     select(actors, company) %>%
     arrange(actors) %>%
-    unique() %>% print(n=132) # %>% write_csv(path = "actor_names.csv")
+    unique() %>% print(n=136)  # %>% write_csv(file = "actor_names.csv")
 
 companies_meeting <- companies_meeting %>%
     left_join(people) 
@@ -239,11 +244,16 @@ carbon <- dat %>%
     group_by(phase) %>% 
     summarize(carbon = sum(carbon))
 
-freq <- dat %>%
+freq <- dat %>% 
+    # correct mispelling
+    mutate(irl_virtual = str_replace_all(irl_virtual, "Virtual", "virtual")) %>%
+    # pull(irl_virtual) %>% unique()
     group_by(phase)  %>%
     summarise(months = as.numeric(max(date) - min(date))/30) %>% 
     left_join(
-        dat %>% group_by(phase) %>%
+        dat %>% 
+            mutate(irl_virtual = str_replace_all(irl_virtual, "Virtual", "virtual")) %>%
+            group_by(phase, irl_virtual) %>%
             tally(name = "meetings")
     ) %>%
     mutate(freq = meetings / months)
@@ -251,18 +261,30 @@ freq <- dat %>%
 
 p1 <- efforts %>% 
     left_join(carbon) %>% 
-    left_join(gender %>% 
-                  select(-academic) %>%
-                  mutate(male = sum(male), female = sum(female)) %>% 
-                  unique()) %>% 
-    left_join(freq) %>% 
-    select(-male, -female, -meetings, -months) %>%
-    rename(`meetings per month` = freq, `carbon emissions` = carbon, `investment in $US` = money) %>%
-    pivot_longer(cols = 2:4, names_to = "variable", values_to = "value") %>%
+    # left_join(gender %>% 
+    #               select(-academic) %>%
+    #               mutate(male = sum(male), female = sum(female)) %>% 
+    #               unique()) %>% 
+    #left_join(freq) %>% 
+    # select(-male, -female) %>%
+    rename( `carbon emissions` = carbon, `investment in $US` = money) %>%
+    pivot_longer(cols = 2:last_col(), names_to = "variable", values_to = "value") %>% 
+    mutate(variable = as_factor(variable), 
+           variable = fct_relevel(variable, rev)) %>%
     ggplot(aes(x=phase, y = value)) +
     geom_col() +
     facet_wrap(~variable, scales = "free_y") +
-    theme_light(base_size = 8)
+    theme_light(base_size = 6)
+
+p3 <- freq %>% 
+    add_column(variable = "meetings per month") %>%
+    ggplot(aes(x = phase, y = freq)) +
+    geom_col(position = "stack", aes(fill = irl_virtual)) +
+    scale_fill_brewer("meeting type",palette = "Set1") +
+    labs(y = "Meetings per month") +
+    facet_wrap(~variable) +
+    theme_light(base_size = 6) +
+    theme(legend.position = c(0.25, 0.8), legend.key.size = unit(0.25, "cm"))
 
 p2 <- gender %>%
     pivot_longer(cols = male:female, names_to = "gender", values_to = "participants") %>% 
@@ -270,13 +292,13 @@ p2 <- gender %>%
     geom_col(position = "stack", aes(fill = gender)) + 
     #scale_fill_viridis_d(option = "A", aesthetics = "fill") +
     facet_wrap(~academic, scales = "free") +
-    theme_light(base_size = 8) +
-    theme(legend.position = "right")
+    theme_light(base_size = 6) +
+    theme(legend.position = c(0.1, 0.8), legend.key.size = unit(0.25, "cm"))
 
 library(patchwork)
-p1 + p2 + plot_layout(widths = c(3,2)) 
+p2 + p3 + p1 + plot_layout(widths = c(2,1,2)) 
 
-ggsave(filename = "descriptive_stats.png", device = "png", dpi = 600, width = 7, height = 2)
+# ggsave(filename = "descriptive_stats.png", device = "png", dpi = 600, width = 7, height = 2)
 ## add task forces
 ## networks with individuals per meeting (phase 1 and 4)
 
