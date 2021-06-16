@@ -6,7 +6,7 @@ library(sna)
 
 
 out <- df_actors %>%
-    mutate(phase = as.factor(phase)) %>%
+    mutate(phase = as_factor(phase)) %>%
     split(., df_actors$phase)
 
 out <- out %>% 
@@ -51,6 +51,6 @@ df_net %>%
     ggplot(aes(phase, value, group = stat)) +
     geom_point(aes(color = stat), show.legend = FALSE) +
     geom_line(aes(color = stat), size = 0.3, show.legend = FALSE) +
-    facet_wrap(~stat)
+    facet_wrap(~stat, nrow = 1)
 
 ggsave(filename = "network_stats.png", device = "png", dpi = 300, width = 4, height = 3.5)
