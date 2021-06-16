@@ -10,7 +10,7 @@ library(RColorBrewer)
 
 # read data
 dat <- readxl::read_excel(
-    path = "~/Box Sync/Osterblom_folding/Protein folding3.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
+    path = "~/Box Sync/Osterblom_folding/Protein folding2015-2020.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
 
 str(dat)
 skimr::skim(dat)
@@ -67,7 +67,7 @@ companies_meeting$company[companies_meeting$company == "MNC"] <- "Maruha Nichiro
 companies_meeting$company[companies_meeting$company == "CPF"] <- "Charoen Pokphand Foods"
 companies_meeting$company[companies_meeting$company == "MC"] <- "Mitsubishi Corporation/Cermaq"
 companies_meeting$company[companies_meeting$company == "KK"] <- "Kyokuyo"
-companies_meeting$company[companies_meeting$company == "MD"] <- "Managing Director"
+companies_meeting$company[companies_meeting$company == "MD"] <- "SeaBOS Secretariat"
 companies_meeting$company[companies_meeting$company == "Skretting"] <- "Nutreco/Skretting"
 # create a non-member categories
 companies_meeting$company[companies_meeting$company %in% c("Trident", "NP", "AUSS")] <- "Non-SeaBOS member"
@@ -87,7 +87,7 @@ companies_meeting$company[companies_meeting$company %in% c("Trident", "NP", "AUS
 ## add transparency and fill = virtual / in real live
 ## From 1st July managing director = Martin Axel 
 
-companies_meeting$company[companies_meeting$date > 2019-07-01 & companies_meeting$actors == "Martin Exel"] <- "Managing Director"
+companies_meeting$company[companies_meeting$date > 2019-07-01 & companies_meeting$actors == "Martin Exel"] <- "SeaBOS Secretariat"
 
 # companies_meeting <- companies_meeting %>% 
 #     mutate(company_short = as_factor(company)) # saving the short code for colors later
@@ -103,7 +103,7 @@ comps <- meetings %>%
     pull(company) %>% 
     as_factor() %>%
     levels() %>%
-    fct_relevel("Scientists","Managing Director")
+    fct_relevel("Scientists","SeaBOS Secretariat")
 
 
 l <- length(comps)
@@ -119,7 +119,7 @@ coords <- coords %>%
 
 meetings <-  meetings %>%
     mutate(company = as_factor(company)) %>% 
-    mutate(company = fct_relevel(company, "Scientists","Managing Director")) %>% 
+    mutate(company = fct_relevel(company, "Scientists","SeaBOS Secretariat")) %>% 
     left_join(coords)
 
 ## Fix colors
@@ -136,14 +136,16 @@ color[levels(comps) %in% c("Cargill Aqua Nutrition", "Mowi", "Nutreco/Skretting"
 color[levels(comps) %in% c("Charoen Pokphand Foods", "Thai Union")] <- cols[c(1,2)]
 color[levels(comps) %in% c("Maruha Nichiro Corporation", "Kyokuyo", "Nissui", "Mitsubishi Corporation/Cermaq")] <- cols[5:8]
 color[levels(comps) %in% c("Dongwon")] <- cols[12]
-color[levels(comps) %in% c("Scientists", "Managing Director")] <- cols[c(4,3)]
+color[levels(comps) %in% c("Scientists", "SeaBOS Secretariat")] <- cols[c(4,3)]
 # color[color== ""] <- 'gray50'
 
 
 df_color <- tibble(
     company = levels(comps),
     color = color) %>% 
-    arrange(company)
+    mutate(company = as_factor(company) %>% 
+               fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member"))%>% 
+    arrange(company) 
 # meetings$task_force[meetings$task_force == "Handover"] <- NA
 
 ## Stars plot: each network is plotted individually by date. Note there is more than one network per day!
@@ -159,7 +161,7 @@ df_color <- tibble(
 #     theme_void(base_size = 6)  +
 #     theme(legend.position = "bottom", legend.direction = "horizontal") 
 
-ggsave(g, filename = "timeline_201118_bottom.eps", device = "eps", width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(g, filename = "timeline_201118_bottom.eps", device = "eps", width = 7, height = 7, units = "in", dpi = 600)
 
 # Time line
 # 
@@ -180,13 +182,13 @@ g <- meetings  %>%
         data = meetings %>% 
             group_by(date, phase) %>%
             summarize(ymin = min(y), ymax = max(y)),
-        aes(xend = date, y = ymin, x = date, yend = ymax), color = "grey50", size = 0.25) +
+        aes(xend = date, y = ymin, x = date, yend = ymax), color = "grey50", size = 0.15) +
     #geom_vline(aes(xintercept = date, linetype = task_force), size = 0.25) +
     geom_point(aes(size = n, fill = company, color = company)) +
     # scale_alpha_manual(values = c(0.5,1), labels = c("virtual", "in real life"), 
     #                    name = "Meeting type", 
     #                    guide = guide_legend(direction = "vertical")) + 
-    scale_size("Number of people", breaks = c(1,5,10), range = c(1,4),
+    scale_size("Number of people", breaks = c(1,5,10), range = c(0.3,3),
                guide = guide_legend(direction = "vertical")) + 
     scale_color_manual("Participants", aesthetics = c("color", "fill"), values = df_color$color,
        guide = guide_legend(direction = "vertical", nrow = 3) ) +
@@ -216,7 +218,8 @@ g <- meetings  %>%
 
 g
 
-
+ggsave(filename = "figures/fig1_participants.eps", plot = g,
+       device = "eps", dpi = 900, width = 7.2, height = 7) 
 
 ####
 #### idea for bar plots:
@@ -226,7 +229,7 @@ g
 # J201001: updated from Henrik's email 200924
 efforts <- tibble(
     phase = c("I1", "I2", "I3", "I4", "I5"),
-    money = c(0, 246000, 500000, 990000, 594000),
+    money = c(0, 262963, 825985, 865650, 504372),
 )
 
 
@@ -329,12 +332,13 @@ p2 <- gender %>%
     #pivot_longer(cols = male:female, names_to = "gender", values_to = "participants") %>% 
     mutate(participants = male + female) %>%
     rename(type = academic) %>% 
-    mutate(phase = as_factor(phase)) %>% 
+    mutate(phase = as_factor(phase),
+           type = as_factor(type) %>% fct_relevel("corporate")) %>% 
     mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
     ggplot(aes(phase, participants)) +
     geom_col(position = "stack", aes(fill = type)) + 
     # scale_fill_viridis_d("", option = "E", aesthetics = "fill") +
-    scale_fill_brewer("Participant",palette = "Set1") +
+    scale_fill_manual("Participant", values = c( "grey40", "#33A02C")) +
     labs(y = "Number of participants", x = "Phase", tag = "a)") +
     theme_classic(base_size = 6) +
     theme(legend.position = c(0.21, 0.85), legend.key.size = unit(0.25, "cm"))
@@ -349,7 +353,7 @@ p4 <- carbon %>%
 
 p5 <- efforts  %>% 
     mutate(phase = as_factor(phase)) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5")) %>%
     ggplot(aes(x=phase, y = money/1000)) +
     geom_col() +
     labs(x = "Phase", y = "Economic budget (thousands USD)", tag = "d)") +
@@ -359,7 +363,7 @@ p5 <- efforts  %>%
 library(patchwork)
 p2 + p3 + p4 + p5 + plot_layout(nrow = 1) 
 p1
-ggsave(filename = "descriptive_stats_JB.eps", device = "eps", dpi = 600, width = 7, height = 2)
+ggsave(filename = "figures/fig4_descriptive_stats.eps", device = "eps", dpi = 600, width = 7, height = 2)
 ## add task forces
 ## networks with individuals per meeting (phase 1 and 4)
 
@@ -375,7 +379,7 @@ actor_meeting <- companies_meeting %>%
 
 
 df_actors <- companies_meeting %>% 
-    #filter(company != "Scientists") %>%
+    # filter(company != "Scientists") %>%
     group_by(date) %>% 
     mutate(companions = list(actors)) %>% 
     unnest(cols = c(companions)) %>%
@@ -425,6 +429,10 @@ df_actors <-  df_actors %>% ungroup() %>%
     rename(gender = Gender) 
 
 df_actors %>%
+    mutate(phase = as_factor(phase)) %>% 
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5")) %>%
+    mutate(company = as_factor(company) %>% 
+               fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member")) %>% 
     ggplot() +
     geom_segment(
         aes(x = x, y = y, xend = xend, yend = yend), 
@@ -432,23 +440,27 @@ df_actors %>%
     #scale_color_viridis_c(option = "viridis", direction = 1) +
     geom_point(
         data = df_actors %>% ungroup() %>% 
+            mutate(phase = as_factor(phase)) %>% 
+            mutate(phase = fct_recode(
+                phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
+            mutate(company = as_factor(company) %>% 
+                       fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member")) %>% 
             group_by(phase) %>%
             select(phase, actors, x, y, company, meetings, gender) %>%
             unique(),
         aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
     scale_color_manual("Companies", aesthetics = c("color", "fill"), #option = "D",
-                    guide = guide_legend(direction = "vertical", ncol = 3) ,
+                    guide = guide_legend(direction = "vertical", ncol = 5) ,
                     values = df_color %>% pull(color)) +
-    scale_size("Number of meetings", breaks = c(50,100,200),
-                      guide = guide_legend(direction = "horizontal", nrow = 1, 
+    scale_size("Number of\n interactions", breaks = c(50,100,200),
+                      guide = guide_legend(direction = "vertical", 
                                            title.position = "top"), range = c(0.5,3)) +
-    # scale_shape("Gender", 
-    #                    guide = guide_legend(direction = "vertical", ncol = 1)) +
-    facet_wrap(.~phase) +
+    facet_wrap(.~phase, nrow = 1) +
     theme_blank(base_size = 7) +
-    theme(legend.position = c(0.85, 0.3))
+    theme(legend.position = "bottom")
 
-ggsave(filename = "networks_201001.png", device = "png", dpi = 900, width = 7.2, height = 5)
+ggsave(filename = "figures/fig1_networks_with_scientists.png", 
+       device = "png", dpi = 900, width = 7.2, height = 3)
 
 
 
