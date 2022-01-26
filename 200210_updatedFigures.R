@@ -7,10 +7,11 @@ library(network)
 library(ggnetwork)
 # library(ggmap)
 library(RColorBrewer)
+library(patchwork)
 
 # read data
 dat <- readxl::read_excel(
-    path = "~/Box Sync/Osterblom_folding/Protein folding2015-2020.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
+    path = "~/Box Sync/Osterblom_folding/Protein folding2015-2021-v2_Juan.xlsx", sheet = 1, .name_repair = janitor::make_clean_names)
 
 str(dat)
 skimr::skim(dat)
@@ -47,7 +48,7 @@ companies_meeting <- df_actors %>%
 
 ## correct names
 companies_meeting$company[is.na(companies_meeting$company)] <- "Scientists"
-# companies_meeting$company[companies_meeting$company == "AV"] <- "AUSS"
+companies_meeting$company[companies_meeting$company == "SeaBOS"] <- "SeaBOS Secretariat"
 # companies_meeting$company[companies_meeting$company == "Cargill"] <- "CAN"
 # 
 # Check with Henrik if these changes still apply:
@@ -58,6 +59,7 @@ companies_meeting$company[companies_meeting$company == "AF"] <- "MNC"
 ## Replace “Companies” by “Participant” and spell out all the names. Also suggest adding countries of headquarters using ISO code: Cargill Aqua Nutrition (USA), Maruha Nichiro (JPN), Nissui (JPN), Kyokuyo (JPN), Dongwon (KOR), Mowi (NOR), Cermaq (NOR), Skretting (NOR), Charoen Pokphand Foods (THA), Thai Union (THA).
 ## companies_meeting$company %>% unique()
 companies_meeting$company[companies_meeting$company == "CAN"] <- "Cargill Aqua Nutrition"
+companies_meeting$company[companies_meeting$company == "Cargill"] <- "Cargill Aqua Nutrition"
 companies_meeting$company[companies_meeting$company == "MHG"] <- "Mowi"
 companies_meeting$company[companies_meeting$company == "DW"] <- "Dongwon"
 companies_meeting$company[companies_meeting$company == "TUF"] <- "Thai Union"
@@ -65,7 +67,9 @@ companies_meeting$company[companies_meeting$company == "non-member"] <- "Non-Sea
 companies_meeting$company[companies_meeting$company == "NSK"] <- "Nissui"
 companies_meeting$company[companies_meeting$company == "MNC"] <- "Maruha Nichiro Corporation"
 companies_meeting$company[companies_meeting$company == "CPF"] <- "Charoen Pokphand Foods"
+companies_meeting$company[companies_meeting$company == "CFP"] <- "Charoen Pokphand Foods"
 companies_meeting$company[companies_meeting$company == "MC"] <- "Mitsubishi Corporation/Cermaq"
+companies_meeting$company[companies_meeting$company == "Cerrmaq"] <- "Mitsubishi Corporation/Cermaq"
 companies_meeting$company[companies_meeting$company == "KK"] <- "Kyokuyo"
 companies_meeting$company[companies_meeting$company == "MD"] <- "SeaBOS Secretariat"
 companies_meeting$company[companies_meeting$company == "Skretting"] <- "Nutreco/Skretting"
@@ -103,15 +107,15 @@ comps <- meetings %>%
     pull(company) %>% 
     as_factor() %>%
     levels() %>%
-    fct_relevel("Scientists","SeaBOS Secretariat")
-
+    fct_relevel("Maruha Nichiro Corporation", "Nissui", "Thai Union" ,"Mowi", "Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo" , "Cargill Aqua Nutrition" , "Charoen Pokphand Foods" , "Non-SeaBOS member" ,"SeaBOS Secretariat", "Scientists")
+levels(comps)
 
 l <- length(comps)
 ## add some noise so it does not end up on the same coordinate
 coords <- tibble(
     x = sin(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2),
     z = cos(2 * pi * ((0:(l - 1))/l)) + runif(l, 0.1,0.2), 
-    y = c(1.5, 1.0, 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5))
+    y = c( 0.8, 0.4, -.05, -0.3, -0.7, -0.8, -0.9, -1, -0.95, 0.05, 0.5, 1.0, 1.5))
 
 coords <- coords %>% 
     add_column(company= levels(comps) %>% as_factor())  ## scientist and MD on top as Henrik wanted
@@ -119,7 +123,7 @@ coords <- coords %>%
 
 meetings <-  meetings %>%
     mutate(company = as_factor(company)) %>% 
-    mutate(company = fct_relevel(company, "Scientists","SeaBOS Secretariat")) %>% 
+    mutate(company = fct_relevel(company, "Maruha Nichiro Corporation", "Nissui", "Thai Union" ,"Mowi", "Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo" , "Cargill Aqua Nutrition" , "Charoen Pokphand Foods" , "Non-SeaBOS member" ,"SeaBOS Secretariat", "Scientists")) %>% 
     left_join(coords)
 
 ## Fix colors
@@ -131,12 +135,12 @@ meetings <-  meetings %>%
 
 color <- vector(mode = "character", length = length(comps))
 cols <- brewer.pal(12, "Paired")
-color[levels(comps) %in% c("Non-SeaBOS member")] <- "grey40"
+color[levels(comps) %in% c("Non-SeaBOS member")] <- "grey20"
 color[levels(comps) %in% c("Cargill Aqua Nutrition", "Mowi", "Nutreco/Skretting")] <- cols[9:11]
 color[levels(comps) %in% c("Charoen Pokphand Foods", "Thai Union")] <- cols[c(1,2)]
 color[levels(comps) %in% c("Maruha Nichiro Corporation", "Kyokuyo", "Nissui", "Mitsubishi Corporation/Cermaq")] <- cols[5:8]
 color[levels(comps) %in% c("Dongwon")] <- cols[12]
-color[levels(comps) %in% c("Scientists", "SeaBOS Secretariat")] <- cols[c(4,3)]
+color[levels(comps) %in% c("Scientists", "SeaBOS Secretariat")] <- cols[c(3,4)]
 # color[color== ""] <- 'gray50'
 
 
@@ -144,7 +148,8 @@ df_color <- tibble(
     company = levels(comps),
     color = color) %>% 
     mutate(company = as_factor(company) %>% 
-               fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member"))%>% 
+               fct_relevel(., levels(meetings$company))
+           ) %>% 
     arrange(company) 
 # meetings$task_force[meetings$task_force == "Handover"] <- NA
 
@@ -166,14 +171,18 @@ df_color <- tibble(
 # Time line
 # 
 meetings <-  meetings %>% 
+    mutate(phase = case_when(is.na(phase) ~ "Phase VI", TRUE ~ phase))|> 
     mutate(phase = as_factor(phase)) %>%
     mutate(phase = fct_recode(
         phase, `Phase I` = "I1", `Phase II` = "I2", `Phase III` = "I3", 
-        `Phase IV` = "I4", `Phase V` = "I5")) %>%
+        `Phase IV` = "I4", `Phase V` = "I5", `Phase VI` = "I6")) %>%
     mutate(irl_virtual = str_to_lower(irl_virtual)) %>%
     left_join(df_color) %>%
     mutate(year = lubridate::floor_date(date, "year"),
            alpha = ifelse(irl_virtual == "IRL", 1, 0.75))
+
+# test the right order of levels:
+levels(meetings$company) == levels(df_color$company)
 
 g <- meetings  %>%
     ggplot(aes(x = date, y = y)) +
@@ -190,7 +199,9 @@ g <- meetings  %>%
     #                    guide = guide_legend(direction = "vertical")) + 
     scale_size("Number of people", breaks = c(1,5,10), range = c(0.3,3),
                guide = guide_legend(direction = "vertical")) + 
-    scale_color_manual("Participants", aesthetics = c("color", "fill"), values = df_color$color,
+    scale_color_manual(
+        "Participants", 
+        aesthetics = c("color", "fill"), values = df_color$color,
        guide = guide_legend(direction = "vertical", nrow = 3) ) +
     ## remove task force
     # geom_point(data = dat %>%
@@ -228,8 +239,8 @@ ggsave(filename = "figures/fig1_participants.eps", plot = g,
 
 # J201001: updated from Henrik's email 200924
 efforts <- tibble(
-    phase = c("I1", "I2", "I3", "I4", "I5"),
-    money = c(0, 262963, 825985, 865650, 504372),
+    phase = c("I1", "I2", "I3", "I4", "I5", "I6"),
+    money = c(0, 262963, 825985, 865650, 504372, 524396),
 )
 
 
@@ -254,10 +265,11 @@ people <- readxl::read_xlsx(
 
 setdiff(people$actors, companies_meeting$actors)
 
-companies_meeting %>% 
-    select(actors, company) %>%
-    arrange(actors) %>%
-    unique() %>% print(n=136)  # %>% write_csv(file = "actor_names.csv")
+# companies_meeting %>%
+#     select(actors, company) %>%
+#     arrange(actors) %>%
+#     unique() %>% print(n=167) %>%
+#     left_join(people) %>% write_csv(file = "actor_names.csv")
 
 companies_meeting <- companies_meeting %>%
     left_join(people) 
@@ -277,7 +289,7 @@ gender <- companies_meeting %>%
 
 carbon <- dat %>%
     group_by(phase) %>% 
-    summarize(carbon = sum(carbon))
+    summarize(carbon = sum(carbon, na.rm = TRUE))
 
 freq <- dat %>% 
     # correct mispelling
@@ -306,7 +318,7 @@ p1 <- efforts %>%
           summarize(freq = sum(meetings)/months) %>% 
           unique()) %>%
     mutate(phase = as_factor(phase)) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5")) %>%
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5", "VI" = "I6")) %>%
     rename( 
         `Number of participants` = participants,
         `Number of meetings per month`= freq) %>%
@@ -324,7 +336,7 @@ p3 <- freq %>%
     ggplot(aes(x = phase, y = freq)) +
     geom_col(position = "stack", aes(fill = irl_virtual)) +
     scale_fill_brewer("Meeting type",palette = "Set1") +
-    labs(y = "Meetings per month", x = "Phase", tag = "b)") +
+    labs(y = "Meetings per month", x = "Phase", tag = "B") +
     theme_classic(base_size = 6) +
     theme(legend.position = c(0.22, 0.85), legend.key.size = unit(0.25, "cm"))
 
@@ -334,42 +346,42 @@ p2 <- gender %>%
     rename(type = academic) %>% 
     mutate(phase = as_factor(phase),
            type = as_factor(type) %>% fct_relevel("corporate")) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5", "VI" = "I6"))%>%
     ggplot(aes(phase, participants)) +
     geom_col(position = "stack", aes(fill = type)) + 
     # scale_fill_viridis_d("", option = "E", aesthetics = "fill") +
     scale_fill_manual("Participant", values = c( "grey40", "#33A02C")) +
-    labs(y = "Number of participants", x = "Phase", tag = "a)") +
+    labs(y = "Number of participants", x = "Phase", tag = "A") +
     theme_classic(base_size = 6) +
     theme(legend.position = c(0.21, 0.85), legend.key.size = unit(0.25, "cm"))
 
 p4 <- carbon %>% 
     mutate(phase = as_factor(phase)) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5", "VI" = "I6"))%>%
     ggplot(aes(x=phase, y = carbon/1000)) +
     geom_col() +
-    labs(x = "Phase", y = "Carbon emissions (thousands tons CO2e)", tag = "c)") +
+    labs(x = "Phase", y = "Carbon emissions (thousands tons CO2e)", tag = "C") +
     theme_classic(base_size = 6)
 
 p5 <- efforts  %>% 
     mutate(phase = as_factor(phase)) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5")) %>%
+    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5", "VI" = "I6")) %>%
     ggplot(aes(x=phase, y = money/1000)) +
     geom_col() +
-    labs(x = "Phase", y = "Economic budget (thousands USD)", tag = "d)") +
+    labs(x = "Phase", y = "Economic budget (thousands USD)", tag = "D") +
     theme_classic(base_size = 6)
 
 
 library(patchwork)
 p2 + p3 + p4 + p5 + plot_layout(nrow = 1) 
-p1
+#p1
 ggsave(filename = "figures/fig4_descriptive_stats.eps", device = "eps", dpi = 600, width = 7, height = 2)
 ## add task forces
 ## networks with individuals per meeting (phase 1 and 4)
 
 
 
-actor_meeting <- companies_meeting %>%
+actor_meeting <- companies_meeting %>% 
     select(date, actors, company) %>% 
     #filter(company != "Scientists") %>%
     mutate(count = 1) %>%
@@ -428,39 +440,44 @@ df_actors <- df_actors %>%
 df_actors <-  df_actors %>% ungroup() %>%
     rename(gender = Gender) 
 
+lvls <- levels(meetings$company)
+
 df_actors %>%
     mutate(phase = as_factor(phase)) %>% 
-    mutate(phase = fct_recode(phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5")) %>%
-    mutate(company = as_factor(company) %>% 
-               fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member")) %>% 
+    mutate(phase = fct_recode(
+        fct_recode(phase, "A" = "I1", "B" = "I2", "C" = "I3", "D" = "I4", "E" = "I5" , "F" = "I6"))) %>%
+    mutate(company = as_factor(company)) %>% 
+    mutate(compnay = fct_relevel(company, lvls )) %>% 
     ggplot() +
     geom_segment(
         aes(x = x, y = y, xend = xend, yend = yend), 
-        size = 0.25,alpha = 0.1, color = "gray25") +  #alpha = 0.25,
+        size = 0.1,alpha = 0.1, color = "gray75") +  #alpha = 0.25,
     #scale_color_viridis_c(option = "viridis", direction = 1) +
     geom_point(
         data = df_actors %>% ungroup() %>% 
             mutate(phase = as_factor(phase)) %>% 
-            mutate(phase = fct_recode(
-                phase, "I" = "I1", "II" = "I2", "III" = "I3", "IV" = "I4", "V" = "I5"))%>%
-            mutate(company = as_factor(company) %>% 
-                       fct_relevel(., "Maruha Nichiro Corporation", "Nissui", "Thai Union", "Mowi","Mitsubishi Corporation/Cermaq", "Dongwon", "Nutreco/Skretting", "Kyokuyo", "Cargill Aqua Nutrition", "Charoen Pokphand Foods", "SeaBOS Secretariat","Scientists" , "Non-SeaBOS member")) %>% 
+            mutate(phase = fct_recode(phase, "A" = "I1", "B" = "I2", "C" = "I3", "D" = "I4", "E" = "I5" , "F" = "I6")) %>%
+            mutate(company = as_factor(company)) %>% 
+            mutate(company = fct_relevel(company, lvls)) %>% 
             group_by(phase) %>%
             select(phase, actors, x, y, company, meetings, gender) %>%
-            unique(),
-        aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
-    scale_color_manual("Companies", aesthetics = c("color", "fill"), #option = "D",
-                    guide = guide_legend(direction = "vertical", ncol = 5) ,
-                    values = df_color %>% pull(color)) +
+            unique() ,
+aes(x = x, y = y, color = company, fill = company, size = meetings), alpha = 1) +
+    scale_color_manual("", aesthetics = c("color", "fill"), #option = "D",
+                       guide = guide_legend(direction = "vertical", ncol = 5) ,
+                       values = df_color %>% pull(color)) +
     scale_size("Number of\n interactions", breaks = c(50,100,200),
-                      guide = guide_legend(direction = "vertical", 
-                                           title.position = "top"), range = c(0.5,3)) +
-    facet_wrap(.~phase, nrow = 1) +
+               guide = guide_legend(direction = "vertical", 
+                                    title.position = "top"), range = c(0.5,3)) +
+    facet_wrap(.~phase, nrow = 2, ncol = 3, scales = "free") +
     theme_blank(base_size = 7) +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom", strip.background = element_blank(),
+          strip.text = element_text(hjust = 0))
+
+
 
 ggsave(filename = "figures/fig1_networks_with_scientists.png", 
-       device = "png", dpi = 900, width = 7.2, height = 3)
+       device = "png", dpi = 900, width = 7.2, height = 4)
 
 
 
@@ -500,22 +517,81 @@ anim_save(filename = "SeaBos_201001.gif")
 
 ##########################################3
 
+# for reviewers questions
+a <- companies_meeting |> 
+    group_by(actors, company) |> 
+    tally() |> 
+    ungroup() |> 
+    filter(n >= 5) |> 
+    mutate(actors = fct_reorder(.f = actors, .x = n),
+           company = fct_reorder(.f = company, .x = n, .fun = sum)) |> 
+    ggplot(aes(n, actors)) + 
+    geom_point(aes(color = company), show.legend = FALSE, size = 0.5) +
+    labs(x = "Number of meetings", tag = "A", 
+         title = "People who attended 5 meetings or more") +
+    theme_light(base_size = 6) +
+    theme(legend.position = c(0.7, 0.4), axis.text.y = element_text(size = 4))
+
+#getwd()
+
+b <- companies_meeting |> 
+    group_by(company) |> 
+    tally() |> 
+    ungroup() |> 
+    #filter(n >= 5) |> 
+    mutate(company = fct_reorder(.f = company, .x = n)) |> 
+    ggplot(aes(n, company)) + 
+    geom_col(aes(fill = company), show.legend = FALSE) +
+    labs(x = "Number of meetings", tag = "B") +
+    theme_light(base_size = 6) +
+    theme(legend.position = c(0.7, 0.4))
 
 
+p1 <- companies_meeting |> 
+    group_by(actors, company) |> 
+    tally() |> 
+    ungroup() |> group_by(company) |> 
+    top_n(5) |> 
+    mutate(actors = fct_reorder(.f = actors, .x = n),
+           company = fct_reorder(.f = company, .x = n, .fun = sum)) |> 
+    ggplot(aes(n, actors)) + 
+    geom_point(aes(color = company), show.legend = FALSE, size = 0.5) +
+    facet_wrap(~company, scales = "free") +
+    labs(x = "Number of meetings", tag = "C",
+         title = "Top 5 people per group") +
+    theme_light(base_size = 6) +
+    theme(legend.position = c(0.7, 0.4))
 
+ggsave(
+    filename = "frequency_meetings_person.png",
+    plot = (a+b)/p1 ,
+    device = "png", path = "figures/", width = 7, height = 8,
+    bg = "white", dpi = 400
+)
 
+lvls <- levels(df_color$company)
 
-
-
-
-
-
-
-
-
-
-
-
+companies_meeting |> 
+    mutate(company = fct_relevel(company, levels = lvls)) |> 
+    filter(company != "Non-SeaBOS member") |> 
+    group_by(company, phase) |>
+    tally() |> 
+    ggplot(aes(phase, n)) +
+    geom_col(aes(fill = company), show.legend = FALSE) +
+    facet_wrap(~company, scales = "free_y") +
+    labs(y = "Number of person-meetings") +
+    scale_color_manual(
+        "", aesthetics = c("color", "fill"), #option = "D",
+        guide = guide_legend(direction = "vertical", ncol = 5) ,
+        values = df_color %>% filter(company != "Non-SeaBOS member") |> pull(color)) +
+    theme_light(base_size = 6)
+    
+ggsave(
+    filename = "frequency_meetings_companies.png",
+    plot = last_plot() ,
+    device = "png", path = "figures/", width = 5, height = 4,
+    bg = "white", dpi = 400
+)
 
 
 

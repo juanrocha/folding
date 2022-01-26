@@ -4,8 +4,8 @@ library(sna)
 
 ## load data: recover df_actors from the updatedFigures.R file
 
-
 out <- df_actors %>%
+    filter(actors != "") %>% 
     mutate(phase = as_factor(phase)) %>%
     split(., df_actors$phase)
 
@@ -32,7 +32,7 @@ bet <- out %>%
     map_dbl(., centralization, betweenness, normalize = TRUE)
 bon <- out %>%
     map(., network, directed = FALSE) %>%
-    map_dbl(., centralization, bonpow, normalize = TRUE)
+    map_dbl(., centralization, bonpow, normalize = TRUE, exponent = 1) #default exponent
 den <- out %>%
     map(., network, directed = FALSE) %>%
     map_dbl(., gden)
@@ -40,17 +40,43 @@ den <- out %>%
 
 df_net <- tibble(
     phase = names(deg),
-    degree = deg,
-    betweenness = bet,
-    power = bon,
-    density = den
+    Degree = deg,
+    Betweenness = bet,
+    Power = bon,
+    Density = den
 )
 
 df_net %>%
     pivot_longer(2:last_col(), names_to = "stat", values_to = "value") %>%
-    ggplot(aes(phase, value, group = stat)) +
-    geom_point(aes(color = stat), show.legend = FALSE) +
-    geom_line(aes(color = stat), size = 0.3, show.legend = FALSE) +
-    facet_wrap(~stat, nrow = 1)
+    mutate(stat = as_factor(stat) |> fct_relevel("Degree", "Density", "Betweenness", "Power")) |> 
+    mutate(tag = case_when(stat == "Density" ~ "A", 
+                           stat == "Degree" ~ "B",
+                           stat == "Betweenness" ~ "C",
+                           stat == "Power" ~ "D")) |> 
+    ggplot(aes(phase, value, group = tag)) +
+    geom_point(show.legend = FALSE) +
+    geom_line( size = 0.3, show.legend = FALSE) +
+    facet_wrap(~tag, nrow = 1) + labs(y = "Value", x = "Phase") +
+    theme_classic() +
+    theme(strip.background = element_blank(), strip.text = element_text(hjust = 0))
 
-ggsave(filename = "network_stats.png", device = "png", dpi = 300, width = 4, height = 3.5)
+ggsave(filename = "figures/network_stats.eps", device = "eps", dpi = 300, width = 7, height = 3)
+
+
+### power:
+pwr <- out %>%
+    map(., network, directed = FALSE) %>%
+    map_df(., bonpow) |> 
+    add_column(phase = 1:6) |> 
+    select(phase, `Knut Nesse`:`SJ Park`) |> 
+    pivot_longer(cols = `Knut Nesse`:`SJ Park`, 
+                 names_to = "people", values_to = "power")
+
+pwr |> 
+    filter(!is.na(power)) |> 
+    ggplot(aes(power, people)) +
+    geom_col( ) +
+    facet_wrap(~phase, scales = "free") +
+    theme_light(base_size = 6)
+    
+ggsave(filename = "figures/network_power.eps", device = "eps", dpi = 300, width = 7, height = 8)
