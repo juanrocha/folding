@@ -93,6 +93,8 @@ companies_meeting$company[companies_meeting$company %in% c("Trident", "NP", "AUS
 
 companies_meeting$company[companies_meeting$date > 2019-07-01 & companies_meeting$actors == "Martin Exel"] <- "SeaBOS Secretariat"
 
+companies_meeting$actors[companies_meeting$actors == "Kiyun Yun"] <- "Yun Kiyun" 
+
 # companies_meeting <- companies_meeting %>% 
 #     mutate(company_short = as_factor(company)) # saving the short code for colors later
 
